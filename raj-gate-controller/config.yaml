@@ -1,6 +1,6 @@
 name: "Raj Gate Controller"
 description: "Secure web portal for gate and garage door control with camera view"
-version: "2.0.0"
+version: "2.1.0"
 slug: "raj-gate-controller"
 url: "https://github.com/vaskodevices/raj-gate-controller"
 arch:
@@ -21,12 +21,21 @@ options:
   nvr_url: ""
   nvr_username: ""
   nvr_password: ""
-  camera1_channel: 1
   camera1_name: "Камера 1"
-  camera2_channel: 0
+  camera1_source: "nvr"
+  camera1_channel: 1
+  camera1_host: ""
+  camera1_stream: "main"
   camera2_name: "Камера 2"
-  camera3_channel: 0
+  camera2_source: "nvr"
+  camera2_channel: 0
+  camera2_host: ""
+  camera2_stream: "main"
   camera3_name: "Камера 3"
+  camera3_source: "nvr"
+  camera3_channel: 0
+  camera3_host: ""
+  camera3_stream: "main"
   garage_button_entity: "input_button.garazhna_vrata"
   gate_button_entity: "input_button.plzgashcha_vrata"
   cooldown_seconds: 10
@@ -37,12 +46,21 @@ schema:
   nvr_url: str
   nvr_username: str
   nvr_password: password
-  camera1_channel: int
   camera1_name: str
-  camera2_channel: int
+  camera1_source: "list(nvr|direct)"
+  camera1_channel: int
+  camera1_host: str
+  camera1_stream: "list(main|sub)"
   camera2_name: str
-  camera3_channel: int
+  camera2_source: "list(nvr|direct)"
+  camera2_channel: int
+  camera2_host: str
+  camera2_stream: "list(main|sub)"
   camera3_name: str
+  camera3_source: "list(nvr|direct)"
+  camera3_channel: int
+  camera3_host: str
+  camera3_stream: "list(main|sub)"
   garage_button_entity: str
   gate_button_entity: str
   cooldown_seconds: int

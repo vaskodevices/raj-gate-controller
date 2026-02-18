@@ -33,12 +33,12 @@ else:
         "nvr_url": os.environ.get("NVR_URL", "http://192.168.1.50"),
         "nvr_username": os.environ.get("NVR_USERNAME", "admin"),
         "nvr_password": os.environ.get("NVR_PASSWORD", ""),
-        "camera1_channel": 1,
-        "camera1_name": "Камера 1",
-        "camera2_channel": 0,
-        "camera2_name": "Камера 2",
-        "camera3_channel": 0,
-        "camera3_name": "Камера 3",
+        "camera1_name": "Камера 1", "camera1_source": "nvr",
+        "camera1_channel": 1, "camera1_host": "", "camera1_stream": "main",
+        "camera2_name": "Камера 2", "camera2_source": "nvr",
+        "camera2_channel": 0, "camera2_host": "", "camera2_stream": "main",
+        "camera3_name": "Камера 3", "camera3_source": "nvr",
+        "camera3_channel": 0, "camera3_host": "", "camera3_stream": "main",
         "garage_button_entity": os.environ.get("GARAGE_BUTTON", "input_button.garazhna_vrata"),
         "gate_button_entity": os.environ.get("GATE_BUTTON", "input_button.plzgashcha_vrata"),
         "cooldown_seconds": int(os.environ.get("COOLDOWN_SECONDS", "10")),
@@ -49,19 +49,38 @@ GARAGE_BUTTON = OPTIONS["garage_button_entity"]
 GATE_BUTTON = OPTIONS["gate_button_entity"]
 COOLDOWN_SECONDS = OPTIONS["cooldown_seconds"]
 
-# NVR direct access
+# NVR access
 NVR_URL = OPTIONS.get("nvr_url", "http://192.168.1.50").rstrip("/")
 NVR_USERNAME = OPTIONS.get("nvr_username", "admin")
 NVR_PASSWORD = OPTIONS.get("nvr_password", "")
 NVR_AUTH = HTTPDigestAuth(NVR_USERNAME, NVR_PASSWORD)
 
-# Build camera list from config (channel 0 = disabled)
+# Build camera list (channel 0 = disabled)
 CAMERAS = []
 for i in range(1, 4):
-    ch = OPTIONS.get(f"camera{i}_channel", 0)
-    name = OPTIONS.get(f"camera{i}_name", f"Камера {i}")
-    if ch and int(ch) > 0:
-        CAMERAS.append({"id": i, "channel": int(ch), "name": name})
+    ch = int(OPTIONS.get(f"camera{i}_channel", 0))
+    if ch == 0:
+        continue
+    source = OPTIONS.get(f"camera{i}_source", "nvr")
+    host = OPTIONS.get(f"camera{i}_host", "").strip().rstrip("/")
+    stream = OPTIONS.get(f"camera{i}_stream", "main")
+    stream_code = "01" if stream == "main" else "02"
+
+    if source == "direct" and host:
+        # Direct camera: always channel 1 on the camera itself
+        snap_url = f"http://{host}/ISAPI/Streaming/channels/1{stream_code}/picture"
+    else:
+        # Through NVR
+        snap_url = f"{NVR_URL}/ISAPI/Streaming/channels/{ch}{stream_code}/picture"
+
+    CAMERAS.append({
+        "id": i,
+        "channel": ch,
+        "name": OPTIONS.get(f"camera{i}_name", f"Камера {i}"),
+        "source": source,
+        "stream": stream,
+        "snap_url": snap_url,
+    })
 
 # HA token
 HA_TOKEN = os.environ.get("SUPERVISOR_TOKEN", os.environ.get("HA_TOKEN", ""))
@@ -196,18 +215,17 @@ def index():
                            cameras=CAMERAS)
 
 
-# --- Camera proxy (direct NVR via Hikvision ISAPI) ---
+# --- Camera proxy (Hikvision ISAPI) ---
 
 @app.route("/camera/snapshot/<int:cam_id>")
 @login_required
 def camera_snapshot(cam_id):
-    """Proxy a single camera snapshot from NVR."""
+    """Proxy a camera snapshot from NVR or direct camera."""
     cam = next((c for c in CAMERAS if c["id"] == cam_id), None)
     if not cam:
         return Response("Camera not found", status=404)
-    url = f"{NVR_URL}/ISAPI/Streaming/channels/{cam['channel']}01/picture"
     try:
-        resp = requests.get(url, auth=NVR_AUTH, timeout=10)
+        resp = requests.get(cam["snap_url"], auth=NVR_AUTH, timeout=10)
         resp.raise_for_status()
         return Response(
             resp.content,
