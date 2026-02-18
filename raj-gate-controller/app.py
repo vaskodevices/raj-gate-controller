@@ -211,20 +211,29 @@ def camera_snapshot():
 @app.route("/camera/stream")
 @login_required
 def camera_stream():
-    """Proxy MJPEG stream from NVR."""
-    url = f"{NVR_URL}/ISAPI/Streaming/channels/{NVR_CHANNEL}01/httpPreview"
-    try:
-        app.logger.info(f"Camera stream request to: {url}")
-        resp = requests.get(url, auth=NVR_AUTH, timeout=30, stream=True)
-        resp.raise_for_status()
-        return Response(
-            stream_with_context(resp.iter_content(chunk_size=8192)),
-            content_type=resp.headers.get("Content-Type",
-                                          "multipart/x-mixed-replace; boundary=boundary")
-        )
-    except Exception as e:
-        app.logger.error(f"Camera stream error: {e}")
-        return Response(status=502)
+    """Simulate MJPEG stream by rapidly fetching snapshots from NVR."""
+    url = f"{NVR_URL}/ISAPI/Streaming/channels/{NVR_CHANNEL}01/picture"
+    boundary = "frameboundary"
+
+    def generate():
+        while True:
+            try:
+                resp = requests.get(url, auth=NVR_AUTH, timeout=10)
+                resp.raise_for_status()
+                frame = resp.content
+                yield (
+                    f"--{boundary}\r\n"
+                    f"Content-Type: image/jpeg\r\n"
+                    f"Content-Length: {len(frame)}\r\n\r\n"
+                ).encode() + frame + b"\r\n"
+                time.sleep(0.3)
+            except Exception:
+                time.sleep(1)
+
+    return Response(
+        stream_with_context(generate()),
+        content_type=f"multipart/x-mixed-replace; boundary={boundary}"
+    )
 
 
 # --- Button actions ---
