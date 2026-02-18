@@ -65,7 +65,9 @@ for i in range(1, 4):
     stream_code = "01" if stream == "main" else "02"
 
     if source == "direct" and host:
-        snap_url = f"http://{host}/ISAPI/Streaming/channels/1{stream_code}/picture"
+        if not host.startswith("http"):
+            host = f"http://{host}"
+        snap_url = f"{host}/ISAPI/Streaming/channels/1{stream_code}/picture"
         cam_user = OPTIONS.get(f"camera{i}_username", "")
         cam_pass = OPTIONS.get(f"camera{i}_password", "")
         auth = HTTPDigestAuth(cam_user, cam_pass)
