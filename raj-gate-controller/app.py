@@ -59,19 +59,21 @@ NVR_AUTH = HTTPDigestAuth(NVR_USERNAME, NVR_PASSWORD)
 CAMERAS = []
 for i in range(1, 4):
     ch = int(OPTIONS.get(f"camera{i}_channel", 0))
-    if ch == 0:
-        continue
     source = OPTIONS.get(f"camera{i}_source", "nvr")
     host = OPTIONS.get(f"camera{i}_host", "").strip().rstrip("/")
     stream = OPTIONS.get(f"camera{i}_stream", "main")
     stream_code = "01" if stream == "main" else "02"
 
     if source == "direct" and host:
-        # Direct camera: always channel 1 on the camera itself
         snap_url = f"http://{host}/ISAPI/Streaming/channels/1{stream_code}/picture"
-    else:
-        # Through NVR
+        cam_user = OPTIONS.get(f"camera{i}_username", "")
+        cam_pass = OPTIONS.get(f"camera{i}_password", "")
+        auth = HTTPDigestAuth(cam_user, cam_pass)
+    elif ch > 0:
         snap_url = f"{NVR_URL}/ISAPI/Streaming/channels/{ch}{stream_code}/picture"
+        auth = NVR_AUTH
+    else:
+        continue
 
     CAMERAS.append({
         "id": i,
@@ -80,6 +82,7 @@ for i in range(1, 4):
         "source": source,
         "stream": stream,
         "snap_url": snap_url,
+        "auth": auth,
     })
 
 # HA token
@@ -225,7 +228,7 @@ def camera_snapshot(cam_id):
     if not cam:
         return Response("Camera not found", status=404)
     try:
-        resp = requests.get(cam["snap_url"], auth=NVR_AUTH, timeout=10)
+        resp = requests.get(cam["snap_url"], auth=cam["auth"], timeout=10)
         resp.raise_for_status()
         return Response(
             resp.content,
