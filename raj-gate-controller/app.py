@@ -3,6 +3,8 @@ import json
 import time
 import sqlite3
 import secrets
+import base64
+import threading
 from functools import wraps
 
 import requests
@@ -91,6 +93,37 @@ for i in range(1, 4):
 HA_TOKEN = os.environ.get("SUPERVISOR_TOKEN", os.environ.get("HA_TOKEN", ""))
 
 _cooldowns = {}
+
+# --- Snapshot cache (background thread fetches all cameras) ---
+_snapshot_cache = {}  # {cam_id: {"data": base64_string, "ok": bool}}
+_cache_lock = threading.Lock()
+
+
+def _fetch_snapshot(cam):
+    """Fetch a single camera snapshot, with Digest→Basic fallback."""
+    try:
+        resp = requests.get(cam["snap_url"], auth=cam["auth"], timeout=10)
+        if resp.status_code == 401 and isinstance(cam["auth"], HTTPDigestAuth):
+            basic = HTTPBasicAuth(cam["auth"].username, cam["auth"].password)
+            resp = requests.get(cam["snap_url"], auth=basic, timeout=10)
+        resp.raise_for_status()
+        return base64.b64encode(resp.content).decode("ascii")
+    except Exception as e:
+        app.logger.error(f"Camera {cam['id']} snapshot error: {e}")
+        return None
+
+
+def _snapshot_worker():
+    """Background thread: refreshes all camera snapshots every 1 second."""
+    while True:
+        for cam in CAMERAS:
+            b64 = _fetch_snapshot(cam)
+            with _cache_lock:
+                _snapshot_cache[cam["id"]] = {
+                    "data": b64,
+                    "ok": b64 is not None,
+                }
+        time.sleep(1)
 
 
 # --- Database ---
@@ -220,29 +253,21 @@ def index():
                            cameras=CAMERAS)
 
 
-# --- Camera proxy (Hikvision ISAPI) ---
+# --- Camera: single aggregated endpoint ---
 
-@app.route("/camera/snapshot/<int:cam_id>")
+@app.route("/camera/snapshots")
 @login_required
-def camera_snapshot(cam_id):
-    """Proxy a camera snapshot from NVR or direct camera."""
-    cam = next((c for c in CAMERAS if c["id"] == cam_id), None)
-    if not cam:
-        return Response("Camera not found", status=404)
-    try:
-        resp = requests.get(cam["snap_url"], auth=cam["auth"], timeout=10)
-        # Fallback: if Digest returns 401, try Basic auth
-        if resp.status_code == 401 and isinstance(cam["auth"], HTTPDigestAuth):
-            basic = HTTPBasicAuth(cam["auth"].username, cam["auth"].password)
-            resp = requests.get(cam["snap_url"], auth=basic, timeout=10)
-        resp.raise_for_status()
-        return Response(
-            resp.content,
-            content_type=resp.headers.get("Content-Type", "image/jpeg")
-        )
-    except Exception as e:
-        app.logger.error(f"Camera {cam_id} snapshot error: {e}")
-        return Response(status=502)
+def camera_snapshots():
+    """Return all cached camera snapshots as JSON (base64)."""
+    with _cache_lock:
+        result = {}
+        for cam in CAMERAS:
+            cached = _snapshot_cache.get(cam["id"])
+            if cached and cached["ok"]:
+                result[str(cam["id"])] = cached["data"]
+            else:
+                result[str(cam["id"])] = None
+    return jsonify(result)
 
 
 # --- Button actions ---
@@ -386,4 +411,7 @@ def change_password(user_id):
 
 if __name__ == "__main__":
     init_db()
+    # Start background snapshot worker
+    t = threading.Thread(target=_snapshot_worker, daemon=True)
+    t.start()
     app.run(host="0.0.0.0", port=5000, debug=False)

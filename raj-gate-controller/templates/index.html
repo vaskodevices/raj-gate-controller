@@ -254,27 +254,27 @@
     <script>
         const COOLDOWN = {{ cooldown }};
 
-        // --- Cameras: snapshot polling ---
-        function loadSnapshot(img) {
-            const camId = img.dataset.cam;
-            const errEl = img.nextElementSibling;
-            const newImg = new Image();
-            newImg.onload = function() {
-                img.src = newImg.src;
-                errEl.style.display = 'none';
-            };
-            newImg.onerror = function() {
-                errEl.style.display = 'block';
-            };
-            newImg.src = '/camera/snapshot/' + camId + '?' + Date.now();
-        }
-
+        // --- Cameras: single aggregated request ---
         function refreshAll() {
-            document.querySelectorAll('.cam-img').forEach(loadSnapshot);
+            fetch('/camera/snapshots')
+                .then(r => r.json())
+                .then(data => {
+                    document.querySelectorAll('.cam-img').forEach(img => {
+                        const camId = img.dataset.cam;
+                        const errEl = img.nextElementSibling;
+                        if (data[camId]) {
+                            img.src = 'data:image/jpeg;base64,' + data[camId];
+                            errEl.style.display = 'none';
+                        } else {
+                            errEl.style.display = 'block';
+                        }
+                    });
+                })
+                .catch(() => {});
         }
 
         refreshAll();
-        setInterval(refreshAll, 1500);
+        setInterval(refreshAll, 1000);
 
         // --- Buttons ---
         function pressButton(type) {
