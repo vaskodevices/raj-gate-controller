@@ -1,7 +1,9 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-RUN apk add --no-cache python3 py3-pip
+RUN apk add --no-cache python3 py3-pip tzdata
+
+ENV TZ=Europe/Sofia
 
 RUN pip3 install --no-cache-dir --upgrade pip
 

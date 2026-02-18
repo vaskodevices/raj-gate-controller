@@ -168,10 +168,11 @@ def init_db():
 
 
 def log_action(username, action, detail=None):
+    from datetime import datetime
     db = get_db()
     db.execute(
-        "INSERT INTO action_log (username, action, detail) VALUES (?, ?, ?)",
-        (username, action, detail)
+        "INSERT INTO action_log (timestamp, username, action, detail) VALUES (?, ?, ?, ?)",
+        (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), username, action, detail)
     )
     db.commit()
     db.close()
