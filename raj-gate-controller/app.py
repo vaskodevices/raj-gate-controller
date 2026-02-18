@@ -196,13 +196,15 @@ def camera_snapshot():
     """Proxy a single camera snapshot from NVR."""
     url = f"{NVR_URL}/ISAPI/Streaming/channels/{NVR_CHANNEL}01/picture"
     try:
+        app.logger.info(f"Camera snapshot request to: {url}")
         resp = requests.get(url, auth=NVR_AUTH, timeout=10)
         resp.raise_for_status()
         return Response(
             resp.content,
             content_type=resp.headers.get("Content-Type", "image/jpeg")
         )
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Camera snapshot error: {e}")
         return Response(status=502)
 
 
@@ -212,6 +214,7 @@ def camera_stream():
     """Proxy MJPEG stream from NVR."""
     url = f"{NVR_URL}/ISAPI/Streaming/channels/{NVR_CHANNEL}01/httpPreview"
     try:
+        app.logger.info(f"Camera stream request to: {url}")
         resp = requests.get(url, auth=NVR_AUTH, timeout=30, stream=True)
         resp.raise_for_status()
         return Response(
@@ -219,7 +222,8 @@ def camera_stream():
             content_type=resp.headers.get("Content-Type",
                                           "multipart/x-mixed-replace; boundary=boundary")
         )
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Camera stream error: {e}")
         return Response(status=502)
 
 
