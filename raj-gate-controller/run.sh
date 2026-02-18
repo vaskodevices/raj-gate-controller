@@ -1,9 +1,5 @@
-#!/usr/bin/env bash
-set -e
+#!/usr/bin/with-contenv bashio
 
-# Initialize database and admin user
-python3 /app/app.py &
-APP_PID=$!
+bashio::log.info "Starting Raj Gate Controller..."
 
-echo "Raj Gate Controller started (PID: $APP_PID)"
-wait $APP_PID
+exec python3 /app/app.py

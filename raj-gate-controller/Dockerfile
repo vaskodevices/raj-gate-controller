@@ -8,8 +8,6 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 COPY templates/ templates/
-COPY run.sh /
+COPY run.sh /etc/services.d/raj-gate-controller/run
 
-RUN chmod a+x /run.sh
-
-CMD [ "/run.sh" ]
+RUN chmod a+x /etc/services.d/raj-gate-controller/run
