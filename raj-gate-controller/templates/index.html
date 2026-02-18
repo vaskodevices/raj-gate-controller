@@ -51,36 +51,11 @@
             margin-bottom: 20px;
         }
         .camera-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .camera-header h2 {
             font-size: 16px;
             color: #aaa;
-        }
-        .camera-toggle {
-            display: flex;
-            gap: 4px;
-            background: #0f3460;
-            border-radius: 8px;
-            padding: 3px;
-        }
-        .camera-toggle button {
-            padding: 6px 14px;
-            border: none;
-            border-radius: 6px;
-            background: transparent;
-            color: #888;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-            width: auto;
-        }
-        .camera-toggle button.active {
-            background: #e94560;
-            color: #fff;
         }
         .camera-wrapper {
             background: #000;
@@ -126,7 +101,8 @@
             width: 100%;
         }
         .gate-btn .icon {
-            font-size: 36px;
+            width: 48px;
+            height: 48px;
         }
         .gate-btn.garage {
             background: #0f3460;
@@ -151,15 +127,17 @@
             cursor: not-allowed;
             border-color: #333 !important;
         }
-        .gate-btn .countdown {
-            font-size: 14px;
-            font-weight: 400;
-            color: #888;
-        }
         .gate-btn .status {
             font-size: 13px;
             font-weight: 400;
             min-height: 20px;
+        }
+
+        /* Bottom cameras grid */
+        .cameras-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
         }
 
         /* Flash messages */
@@ -176,7 +154,8 @@
         @media (max-width: 480px) {
             .container { padding: 12px; }
             .gate-btn { padding: 24px 16px; font-size: 16px; }
-            .gate-btn .icon { font-size: 28px; }
+            .gate-btn .icon { width: 36px; height: 36px; }
+            .cameras-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -202,68 +181,83 @@
         {% endif %}
         {% endwith %}
 
+        {% if cameras|length > 0 %}
         <div class="camera-section">
             <div class="camera-header">
-                <h2>Камера - Вход</h2>
-                <div class="camera-toggle">
-                    <button id="btn-snapshot" class="active" onclick="switchCamera('snapshot')">Snapshot</button>
-                    <button id="btn-live" onclick="switchCamera('live')">Live</button>
-                </div>
+                <h2>{{ cameras[0].name }}</h2>
             </div>
             <div class="camera-wrapper">
-                <img id="camera-img" src="" alt="Camera">
-                <div id="camera-error" class="camera-error">Няма връзка с камерата</div>
+                <img class="cam-img" data-cam="{{ cameras[0].id }}" src="" alt="{{ cameras[0].name }}">
+                <div class="camera-error">Няма връзка</div>
             </div>
         </div>
+        {% endif %}
 
         <div class="buttons-section">
             <button class="gate-btn garage" id="btn-garage" onclick="pressButton('garage')">
-                <span class="icon">&#x1F3E0;</span>
+                <svg class="icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <!-- Garage frame -->
+                    <rect x="6" y="12" width="36" height="30" rx="2"/>
+                    <!-- Roof -->
+                    <path d="M2 14 L24 2 L46 14"/>
+                    <!-- Horizontal slats (door panels sliding up) -->
+                    <line x1="10" y1="20" x2="38" y2="20"/>
+                    <line x1="10" y1="26" x2="38" y2="26"/>
+                    <line x1="10" y1="32" x2="38" y2="32"/>
+                    <line x1="10" y1="38" x2="38" y2="38"/>
+                    <!-- Arrow up -->
+                    <path d="M24 42 L24 16 M18 22 L24 16 L30 22" stroke-width="3"/>
+                </svg>
                 Гаражна Врата
                 <span class="status" id="status-garage"></span>
             </button>
             <button class="gate-btn gate" id="btn-gate" onclick="pressButton('gate')">
-                <span class="icon">&#x1F6E1;</span>
+                <svg class="icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <!-- Left post -->
+                    <rect x="2" y="8" width="6" height="34" rx="1"/>
+                    <!-- Right post -->
+                    <rect x="40" y="8" width="6" height="34" rx="1"/>
+                    <!-- Gate vertical bars -->
+                    <line x1="14" y1="12" x2="14" y2="38"/>
+                    <line x1="20" y1="12" x2="20" y2="38"/>
+                    <line x1="26" y1="12" x2="26" y2="38"/>
+                    <line x1="32" y1="12" x2="32" y2="38"/>
+                    <!-- Top rail -->
+                    <line x1="8" y1="14" x2="40" y2="14"/>
+                    <!-- Bottom rail -->
+                    <line x1="8" y1="36" x2="40" y2="36"/>
+                    <!-- Arrow right (sliding) -->
+                    <path d="M10 25 L38 25 M32 19 L38 25 L32 31" stroke-width="3"/>
+                </svg>
                 Дворна Врата
                 <span class="status" id="status-gate"></span>
             </button>
         </div>
+
+        {% if cameras|length > 1 %}
+        <div class="cameras-grid">
+            {% for cam in cameras[1:] %}
+            <div class="camera-section">
+                <div class="camera-header">
+                    <h2>{{ cam.name }}</h2>
+                </div>
+                <div class="camera-wrapper">
+                    <img class="cam-img" data-cam="{{ cam.id }}" src="" alt="{{ cam.name }}">
+                    <div class="camera-error">Няма връзка</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 
     <script>
         const COOLDOWN = {{ cooldown }};
-        let cameraMode = 'snapshot';
-        let snapshotInterval = null;
 
-        // --- Camera ---
-        function switchCamera(mode) {
-            cameraMode = mode;
-            document.getElementById('btn-snapshot').classList.toggle('active', mode === 'snapshot');
-            document.getElementById('btn-live').classList.toggle('active', mode === 'live');
-
-            const img = document.getElementById('camera-img');
-            const errEl = document.getElementById('camera-error');
-            errEl.style.display = 'none';
-
-            if (snapshotInterval) {
-                clearInterval(snapshotInterval);
-                snapshotInterval = null;
-            }
-
-            if (mode === 'snapshot') {
-                loadSnapshot();
-                snapshotInterval = setInterval(loadSnapshot, 1500);
-            } else {
-                img.src = '/camera/stream?' + Date.now();
-                img.onerror = function() {
-                    errEl.style.display = 'block';
-                };
-            }
-        }
-
-        function loadSnapshot() {
-            const img = document.getElementById('camera-img');
-            const errEl = document.getElementById('camera-error');
+        // --- Cameras: snapshot polling ---
+        function loadSnapshot(img) {
+            const camId = img.dataset.cam;
+            const errEl = img.nextElementSibling;
             const newImg = new Image();
             newImg.onload = function() {
                 img.src = newImg.src;
@@ -272,8 +266,15 @@
             newImg.onerror = function() {
                 errEl.style.display = 'block';
             };
-            newImg.src = '/camera/snapshot?' + Date.now();
+            newImg.src = '/camera/snapshot/' + camId + '?' + Date.now();
         }
+
+        function refreshAll() {
+            document.querySelectorAll('.cam-img').forEach(loadSnapshot);
+        }
+
+        refreshAll();
+        setInterval(refreshAll, 1500);
 
         // --- Buttons ---
         function pressButton(type) {
@@ -329,9 +330,6 @@
             }, 1000);
             status.textContent = 'Изчакайте ' + remaining + ' сек.';
         }
-
-        // Start in snapshot mode
-        switchCamera('snapshot');
     </script>
 </body>
 </html>

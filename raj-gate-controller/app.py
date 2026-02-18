@@ -2,15 +2,14 @@ import os
 import json
 import time
 import sqlite3
-import hashlib
 import secrets
-from datetime import datetime
 from functools import wraps
 
 import requests
+from requests.auth import HTTPDigestAuth
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    session, flash, jsonify, Response, stream_with_context
+    session, flash, jsonify, Response
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -27,27 +26,46 @@ if os.path.exists(OPTIONS_PATH):
     with open(OPTIONS_PATH) as f:
         OPTIONS = json.load(f)
 else:
-    # Local development fallback
     OPTIONS = {
         "admin_username": os.environ.get("ADMIN_USERNAME", "admin"),
         "admin_password": os.environ.get("ADMIN_PASSWORD", "admin"),
         "ha_url": os.environ.get("HA_URL", "http://130.204.136.137:8123"),
-        "camera_entity": os.environ.get("CAMERA_ENTITY", "camera.nvr_profilename018"),
+        "nvr_url": os.environ.get("NVR_URL", "http://192.168.1.50"),
+        "nvr_username": os.environ.get("NVR_USERNAME", "admin"),
+        "nvr_password": os.environ.get("NVR_PASSWORD", ""),
+        "camera1_channel": 1,
+        "camera1_name": "Камера 1",
+        "camera2_channel": 0,
+        "camera2_name": "Камера 2",
+        "camera3_channel": 0,
+        "camera3_name": "Камера 3",
         "garage_button_entity": os.environ.get("GARAGE_BUTTON", "input_button.garazhna_vrata"),
         "gate_button_entity": os.environ.get("GATE_BUTTON", "input_button.plzgashcha_vrata"),
         "cooldown_seconds": int(os.environ.get("COOLDOWN_SECONDS", "10")),
     }
 
 HA_URL = OPTIONS["ha_url"].rstrip("/")
-CAMERA_ENTITY = OPTIONS["camera_entity"]
 GARAGE_BUTTON = OPTIONS["garage_button_entity"]
 GATE_BUTTON = OPTIONS["gate_button_entity"]
 COOLDOWN_SECONDS = OPTIONS["cooldown_seconds"]
 
-# HA token: prefer SUPERVISOR_TOKEN (add-on), then HA_TOKEN env var
+# NVR direct access
+NVR_URL = OPTIONS.get("nvr_url", "http://192.168.1.50").rstrip("/")
+NVR_USERNAME = OPTIONS.get("nvr_username", "admin")
+NVR_PASSWORD = OPTIONS.get("nvr_password", "")
+NVR_AUTH = HTTPDigestAuth(NVR_USERNAME, NVR_PASSWORD)
+
+# Build camera list from config (channel 0 = disabled)
+CAMERAS = []
+for i in range(1, 4):
+    ch = OPTIONS.get(f"camera{i}_channel", 0)
+    name = OPTIONS.get(f"camera{i}_name", f"Камера {i}")
+    if ch and int(ch) > 0:
+        CAMERAS.append({"id": i, "channel": int(ch), "name": name})
+
+# HA token
 HA_TOKEN = os.environ.get("SUPERVISOR_TOKEN", os.environ.get("HA_TOKEN", ""))
 
-# Server-side cooldown tracking: {entity_id: last_press_timestamp}
 _cooldowns = {}
 
 
@@ -78,7 +96,6 @@ def init_db():
             detail TEXT
         );
     """)
-    # Ensure admin user exists
     admin = db.execute("SELECT id FROM users WHERE username = ?",
                        (OPTIONS["admin_username"],)).fetchone()
     if not admin and OPTIONS["admin_password"]:
@@ -175,54 +192,30 @@ def index():
     return render_template("index.html",
                            username=session["username"],
                            is_admin=session.get("is_admin", False),
-                           cooldown=COOLDOWN_SECONDS)
+                           cooldown=COOLDOWN_SECONDS,
+                           cameras=CAMERAS)
 
 
-# --- Camera proxy (via HA API) ---
+# --- Camera proxy (direct NVR via Hikvision ISAPI) ---
 
-@app.route("/camera/snapshot")
+@app.route("/camera/snapshot/<int:cam_id>")
 @login_required
-def camera_snapshot():
-    """Proxy a single camera snapshot from HA."""
-    url = f"{HA_URL}/api/camera_proxy/{CAMERA_ENTITY}"
+def camera_snapshot(cam_id):
+    """Proxy a single camera snapshot from NVR."""
+    cam = next((c for c in CAMERAS if c["id"] == cam_id), None)
+    if not cam:
+        return Response("Camera not found", status=404)
+    url = f"{NVR_URL}/ISAPI/Streaming/channels/{cam['channel']}01/picture"
     try:
-        resp = requests.get(url, headers=ha_headers(), timeout=10)
+        resp = requests.get(url, auth=NVR_AUTH, timeout=10)
         resp.raise_for_status()
         return Response(
             resp.content,
             content_type=resp.headers.get("Content-Type", "image/jpeg")
         )
     except Exception as e:
-        app.logger.error(f"Camera snapshot error: {e}")
+        app.logger.error(f"Camera {cam_id} snapshot error: {e}")
         return Response(status=502)
-
-
-@app.route("/camera/stream")
-@login_required
-def camera_stream():
-    """MJPEG stream built from HA camera snapshots (~2 fps)."""
-    snapshot_url = f"{HA_URL}/api/camera_proxy/{CAMERA_ENTITY}"
-    boundary = "frameboundary"
-
-    def generate():
-        while True:
-            try:
-                resp = requests.get(snapshot_url, headers=ha_headers(), timeout=10)
-                resp.raise_for_status()
-                frame = resp.content
-                yield (
-                    f"--{boundary}\r\n"
-                    f"Content-Type: image/jpeg\r\n"
-                    f"Content-Length: {len(frame)}\r\n\r\n"
-                ).encode() + frame + b"\r\n"
-                time.sleep(0.5)
-            except Exception:
-                time.sleep(1)
-
-    return Response(
-        stream_with_context(generate()),
-        content_type=f"multipart/x-mixed-replace; boundary={boundary}"
-    )
 
 
 # --- Button actions ---
