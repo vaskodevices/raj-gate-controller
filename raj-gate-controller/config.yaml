@@ -1,6 +1,6 @@
 name: "Raj Gate Controller"
 description: "Secure web portal for gate and garage door control with camera view"
-version: "1.1.3"
+version: "1.2.0"
 slug: "raj-gate-controller"
 url: "https://github.com/vaskodevices/raj-gate-controller"
 arch:
@@ -17,7 +17,10 @@ options:
   admin_username: "admin"
   admin_password: ""
   ha_url: "http://supervisor/core"
-  camera_entity: "camera.nvr_profilename018"
+  nvr_url: ""
+  nvr_username: ""
+  nvr_password: ""
+  nvr_channel: 1
   garage_button_entity: "input_button.garazhna_vrata"
   gate_button_entity: "input_button.plzgashcha_vrata"
   cooldown_seconds: 10
@@ -25,7 +28,10 @@ schema:
   admin_username: str
   admin_password: password
   ha_url: url
-  camera_entity: str
+  nvr_url: url
+  nvr_username: str
+  nvr_password: password
+  nvr_channel: int
   garage_button_entity: str
   gate_button_entity: str
   cooldown_seconds: int

@@ -8,6 +8,7 @@ from datetime import datetime
 from functools import wraps
 
 import requests
+from requests.auth import HTTPDigestAuth
 from flask import (
     Flask, render_template, request, redirect, url_for,
     session, flash, jsonify, Response, stream_with_context
@@ -32,17 +33,26 @@ else:
         "admin_username": os.environ.get("ADMIN_USERNAME", "admin"),
         "admin_password": os.environ.get("ADMIN_PASSWORD", "admin"),
         "ha_url": os.environ.get("HA_URL", "http://130.204.136.137:8123"),
-        "camera_entity": os.environ.get("CAMERA_ENTITY", "camera.nvr_profilename018"),
+        "nvr_url": os.environ.get("NVR_URL", ""),
+        "nvr_username": os.environ.get("NVR_USERNAME", ""),
+        "nvr_password": os.environ.get("NVR_PASSWORD", ""),
+        "nvr_channel": int(os.environ.get("NVR_CHANNEL", "1")),
         "garage_button_entity": os.environ.get("GARAGE_BUTTON", "input_button.garazhna_vrata"),
         "gate_button_entity": os.environ.get("GATE_BUTTON", "input_button.plzgashcha_vrata"),
         "cooldown_seconds": int(os.environ.get("COOLDOWN_SECONDS", "10")),
     }
 
 HA_URL = OPTIONS["ha_url"].rstrip("/")
-CAMERA_ENTITY = OPTIONS["camera_entity"]
 GARAGE_BUTTON = OPTIONS["garage_button_entity"]
 GATE_BUTTON = OPTIONS["gate_button_entity"]
 COOLDOWN_SECONDS = OPTIONS["cooldown_seconds"]
+
+# NVR direct access
+NVR_URL = OPTIONS.get("nvr_url", "http://192.168.1.50").rstrip("/")
+NVR_USERNAME = OPTIONS.get("nvr_username", "admin")
+NVR_PASSWORD = OPTIONS.get("nvr_password", "")
+NVR_CHANNEL = OPTIONS.get("nvr_channel", 2)
+NVR_AUTH = HTTPDigestAuth(NVR_USERNAME, NVR_PASSWORD)
 
 # HA token: prefer SUPERVISOR_TOKEN (add-on), then HA_TOKEN env var
 HA_TOKEN = os.environ.get("SUPERVISOR_TOKEN", os.environ.get("HA_TOKEN", ""))
@@ -178,15 +188,15 @@ def index():
                            cooldown=COOLDOWN_SECONDS)
 
 
-# --- Camera proxy ---
+# --- Camera proxy (direct NVR via Hikvision ISAPI) ---
 
 @app.route("/camera/snapshot")
 @login_required
 def camera_snapshot():
-    """Proxy a single camera snapshot from HA."""
-    url = f"{HA_URL}/api/camera_proxy/{CAMERA_ENTITY}"
+    """Proxy a single camera snapshot from NVR."""
+    url = f"{NVR_URL}/ISAPI/Streaming/channels/{NVR_CHANNEL}01/picture"
     try:
-        resp = requests.get(url, headers=ha_headers(), timeout=10, stream=True)
+        resp = requests.get(url, auth=NVR_AUTH, timeout=10)
         resp.raise_for_status()
         return Response(
             resp.content,
@@ -199,15 +209,15 @@ def camera_snapshot():
 @app.route("/camera/stream")
 @login_required
 def camera_stream():
-    """Proxy MJPEG stream from HA."""
-    url = f"{HA_URL}/api/camera_proxy_stream/{CAMERA_ENTITY}"
+    """Proxy MJPEG stream from NVR."""
+    url = f"{NVR_URL}/ISAPI/Streaming/channels/{NVR_CHANNEL}01/httpPreview"
     try:
-        resp = requests.get(url, headers=ha_headers(), timeout=30, stream=True)
+        resp = requests.get(url, auth=NVR_AUTH, timeout=30, stream=True)
         resp.raise_for_status()
         return Response(
-            stream_with_context(resp.iter_content(chunk_size=4096)),
+            stream_with_context(resp.iter_content(chunk_size=8192)),
             content_type=resp.headers.get("Content-Type",
-                                          "multipart/x-mixed-replace; boundary=frame")
+                                          "multipart/x-mixed-replace; boundary=boundary")
         )
     except Exception:
         return Response(status=502)
