@@ -27,7 +27,7 @@
             text-align: center;
             margin-bottom: 8px;
             font-size: 24px;
-            color: #e94560;
+            color: #4fc3f7;
         }
         .subtitle {
             text-align: center;
@@ -56,14 +56,31 @@
             transition: border-color 0.2s;
         }
         input:focus {
-            border-color: #e94560;
+            border-color: #4fc3f7;
+        }
+        .remember-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .remember-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #4fc3f7;
+        }
+        .remember-row label {
+            margin: 0;
+            font-size: 14px;
+            color: #aaa;
+            cursor: pointer;
         }
         button {
             width: 100%;
             padding: 14px;
             border: none;
             border-radius: 8px;
-            background: #e94560;
+            background: #1a6fc4;
             color: #fff;
             font-size: 16px;
             font-weight: 600;
@@ -71,10 +88,10 @@
             transition: background 0.2s;
         }
         button:hover {
-            background: #c73650;
+            background: #2196f3;
         }
         .flash {
-            background: #533;
+            background: #1a3a5c;
             color: #f88;
             padding: 10px 14px;
             border-radius: 8px;
@@ -103,6 +120,10 @@
             <div class="form-group">
                 <label for="password">Парола</label>
                 <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            <div class="remember-row">
+                <input type="checkbox" id="remember" name="remember" value="1" checked>
+                <label for="remember">Запомни ме</label>
             </div>
             <button type="submit">Вход</button>
         </form>

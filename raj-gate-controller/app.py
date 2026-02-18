@@ -15,6 +15,8 @@ from flask import (
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from datetime import timedelta
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", secrets.token_hex(32))
 
@@ -229,6 +231,9 @@ def login():
         if user and check_password_hash(user["password_hash"], password):
             session["username"] = user["username"]
             session["is_admin"] = bool(user["is_admin"])
+            if request.form.get("remember"):
+                session.permanent = True
+                app.permanent_session_lifetime = timedelta(days=365)
             log_action(username, "login")
             return redirect(url_for("index"))
         flash("Грешно потребителско име или парола.", "error")
