@@ -6,7 +6,7 @@ import secrets
 from functools import wraps
 
 import requests
-from requests.auth import HTTPDigestAuth
+from requests.auth import HTTPDigestAuth, HTTPBasicAuth
 from flask import (
     Flask, render_template, request, redirect, url_for,
     session, flash, jsonify, Response
@@ -231,6 +231,10 @@ def camera_snapshot(cam_id):
         return Response("Camera not found", status=404)
     try:
         resp = requests.get(cam["snap_url"], auth=cam["auth"], timeout=10)
+        # Fallback: if Digest returns 401, try Basic auth
+        if resp.status_code == 401 and isinstance(cam["auth"], HTTPDigestAuth):
+            basic = HTTPBasicAuth(cam["auth"].username, cam["auth"].password)
+            resp = requests.get(cam["snap_url"], auth=basic, timeout=10)
         resp.raise_for_status()
         return Response(
             resp.content,
