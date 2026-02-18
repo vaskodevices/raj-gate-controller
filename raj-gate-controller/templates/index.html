@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raj Gate Control</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: #16213e;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .navbar h1 {
+            font-size: 18px;
+            color: #e94560;
+        }
+        .nav-links {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        .nav-links a {
+            color: #aaa;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: #e94560; }
+        .nav-user {
+            color: #666;
+            font-size: 13px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Camera */
+        .camera-section {
+            margin-bottom: 20px;
+        }
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .camera-header h2 {
+            font-size: 16px;
+            color: #aaa;
+        }
+        .camera-toggle {
+            display: flex;
+            gap: 4px;
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 3px;
+        }
+        .camera-toggle button {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: #888;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: auto;
+        }
+        .camera-toggle button.active {
+            background: #e94560;
+            color: #fff;
+        }
+        .camera-wrapper {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+        }
+        .camera-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .camera-error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 14px;
+            display: none;
+        }
+
+        /* Buttons */
+        .buttons-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .gate-btn {
+            padding: 30px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+        .gate-btn .icon {
+            font-size: 36px;
+        }
+        .gate-btn.garage {
+            background: #0f3460;
+            color: #4fc3f7;
+            border: 2px solid #1a5276;
+        }
+        .gate-btn.garage:hover:not(:disabled) {
+            background: #1a5276;
+            border-color: #4fc3f7;
+        }
+        .gate-btn.gate {
+            background: #0f3460;
+            color: #81c784;
+            border: 2px solid #1b5e20;
+        }
+        .gate-btn.gate:hover:not(:disabled) {
+            background: #1b4332;
+            border-color: #81c784;
+        }
+        .gate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #333 !important;
+        }
+        .gate-btn .countdown {
+            font-size: 14px;
+            font-weight: 400;
+            color: #888;
+        }
+        .gate-btn .status {
+            font-size: 13px;
+            font-weight: 400;
+            min-height: 20px;
+        }
+
+        /* Flash messages */
+        .flash {
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            text-align: center;
+        }
+        .flash.error { background: #533; color: #f88; }
+        .flash.success { background: #353; color: #8f8; }
+
+        @media (max-width: 480px) {
+            .container { padding: 12px; }
+            .gate-btn { padding: 24px 16px; font-size: 16px; }
+            .gate-btn .icon { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>Raj Gate Control</h1>
+        <div class="nav-links">
+            <a href="{{ url_for('view_log') }}">История</a>
+            {% if is_admin %}
+            <a href="{{ url_for('manage_users') }}">Потребители</a>
+            {% endif %}
+            <span class="nav-user">{{ username }}</span>
+            <a href="{{ url_for('logout') }}">Изход</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <div class="camera-section">
+            <div class="camera-header">
+                <h2>Камера - Вход</h2>
+                <div class="camera-toggle">
+                    <button id="btn-snapshot" class="active" onclick="switchCamera('snapshot')">Snapshot</button>
+                    <button id="btn-live" onclick="switchCamera('live')">Live</button>
+                </div>
+            </div>
+            <div class="camera-wrapper">
+                <img id="camera-img" src="" alt="Camera">
+                <div id="camera-error" class="camera-error">Няма връзка с камерата</div>
+            </div>
+        </div>
+
+        <div class="buttons-section">
+            <button class="gate-btn garage" id="btn-garage" onclick="pressButton('garage')">
+                <span class="icon">&#x1F3E0;</span>
+                Гаражна Врата
+                <span class="status" id="status-garage"></span>
+            </button>
+            <button class="gate-btn gate" id="btn-gate" onclick="pressButton('gate')">
+                <span class="icon">&#x1F6E1;</span>
+                Дворна Врата
+                <span class="status" id="status-gate"></span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const COOLDOWN = {{ cooldown }};
+        let cameraMode = 'snapshot';
+        let snapshotInterval = null;
+
+        // --- Camera ---
+        function switchCamera(mode) {
+            cameraMode = mode;
+            document.getElementById('btn-snapshot').classList.toggle('active', mode === 'snapshot');
+            document.getElementById('btn-live').classList.toggle('active', mode === 'live');
+
+            const img = document.getElementById('camera-img');
+            const errEl = document.getElementById('camera-error');
+            errEl.style.display = 'none';
+
+            if (snapshotInterval) {
+                clearInterval(snapshotInterval);
+                snapshotInterval = null;
+            }
+
+            if (mode === 'snapshot') {
+                loadSnapshot();
+                snapshotInterval = setInterval(loadSnapshot, 1500);
+            } else {
+                img.src = '/camera/stream?' + Date.now();
+                img.onerror = function() {
+                    errEl.style.display = 'block';
+                };
+            }
+        }
+
+        function loadSnapshot() {
+            const img = document.getElementById('camera-img');
+            const errEl = document.getElementById('camera-error');
+            const newImg = new Image();
+            newImg.onload = function() {
+                img.src = newImg.src;
+                errEl.style.display = 'none';
+            };
+            newImg.onerror = function() {
+                errEl.style.display = 'block';
+            };
+            newImg.src = '/camera/snapshot?' + Date.now();
+        }
+
+        // --- Buttons ---
+        function pressButton(type) {
+            const btn = document.getElementById('btn-' + type);
+            const status = document.getElementById('status-' + type);
+            if (btn.disabled) return;
+
+            btn.disabled = true;
+            status.textContent = 'Изпращане...';
+
+            fetch('/api/' + type, { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        status.textContent = 'Изпратено!';
+                        startCooldown(type, COOLDOWN);
+                    } else {
+                        status.textContent = data.error || 'Грешка';
+                        if (data.remaining) {
+                            startCooldown(type, data.remaining);
+                        } else {
+                            setTimeout(() => {
+                                btn.disabled = false;
+                                status.textContent = '';
+                            }, 2000);
+                        }
+                    }
+                })
+                .catch(() => {
+                    status.textContent = 'Грешка при свързване';
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        status.textContent = '';
+                    }, 2000);
+                });
+        }
+
+        function startCooldown(type, seconds) {
+            const btn = document.getElementById('btn-' + type);
+            const status = document.getElementById('status-' + type);
+            let remaining = Math.ceil(seconds);
+            btn.disabled = true;
+
+            const timer = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    status.textContent = '';
+                } else {
+                    status.textContent = 'Изчакайте ' + remaining + ' сек.';
+                }
+            }, 1000);
+            status.textContent = 'Изчакайте ' + remaining + ' сек.';
+        }
+
+        // Start in snapshot mode
+        switchCamera('snapshot');
+    </script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+name: "Raj Gate Controller"
+description: "Secure web portal for gate and garage door control with camera view"
+version: "1.0.0"
+slug: "raj-gate-controller"
+url: "https://github.com/vaskodevices/raj-gate-controller"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: "application"
+boot: "auto"
+ports:
+  5000/tcp: 5000
+ports_description:
+  5000/tcp: "Web interface"
+options:
+  admin_username: "admin"
+  admin_password: ""
+  ha_url: "http://supervisor/core"
+  camera_entity: "camera.nvr_profilename018"
+  garage_button_entity: "input_button.garazhna_vrata"
+  gate_button_entity: "input_button.plzgashcha_vrata"
+  cooldown_seconds: 10
+schema:
+  admin_username: str
+  admin_password: password
+  ha_url: url
+  camera_entity: str
+  garage_button_entity: str
+  gate_button_entity: str
+  cooldown_seconds: int
+homeassistant_api: true
+auth_api: true
+ingress: false
+panel_icon: "mdi:gate"
+panel_title: "Gate Control"

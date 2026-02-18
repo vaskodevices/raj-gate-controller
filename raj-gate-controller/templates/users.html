@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raj Gate Control - Потребители</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .navbar {
+            background: #16213e;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .navbar h1 { font-size: 18px; color: #e94560; }
+        .nav-links { display: flex; gap: 16px; align-items: center; }
+        .nav-links a { color: #aaa; text-decoration: none; font-size: 14px; transition: color 0.2s; }
+        .nav-links a:hover { color: #e94560; }
+        .nav-user { color: #666; font-size: 13px; }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h2 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: #aaa;
+        }
+        .flash {
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            text-align: center;
+        }
+        .flash.error { background: #533; color: #f88; }
+        .flash.success { background: #353; color: #8f8; }
+
+        /* Users table */
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #16213e;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        .users-table th {
+            background: #0f3460;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .users-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #1a1a2e;
+            font-size: 14px;
+            vertical-align: middle;
+        }
+        .users-table tr:last-child td { border-bottom: none; }
+        .badge-admin {
+            background: #e94560;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .actions-cell {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .actions-cell form {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .actions-cell input[type="password"] {
+            padding: 6px 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #0f3460;
+            color: #eee;
+            font-size: 13px;
+            width: 120px;
+            outline: none;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+        .btn-sm:hover { opacity: 0.8; }
+        .btn-save { background: #4fc3f7; color: #000; }
+        .btn-delete { background: #e94560; color: #fff; }
+
+        /* Add user form */
+        .add-user-card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .add-user-card h3 {
+            font-size: 16px;
+            color: #aaa;
+            margin-bottom: 16px;
+        }
+        .add-form {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .add-form .field {
+            flex: 1;
+            min-width: 140px;
+        }
+        .add-form label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .add-form input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #0f3460;
+            color: #eee;
+            font-size: 14px;
+            outline: none;
+        }
+        .add-form input:focus { border-color: #e94560; }
+        .btn-add {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            background: #81c784;
+            color: #000;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+        }
+        .btn-add:hover { opacity: 0.8; }
+
+        @media (max-width: 600px) {
+            .actions-cell { flex-direction: column; align-items: flex-start; }
+            .add-form { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <h1>Raj Gate Control</h1>
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}">Начало</a>
+            <a href="{{ url_for('view_log') }}">История</a>
+            <span class="nav-user">{{ username }}</span>
+            <a href="{{ url_for('logout') }}">Изход</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2>Управление на потребители</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Потребител</th>
+                    <th>Роля</th>
+                    <th>Създаден</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.username }}</td>
+                    <td>
+                        {% if user.is_admin %}
+                        <span class="badge-admin">ADMIN</span>
+                        {% else %}
+                        Потребител
+                        {% endif %}
+                    </td>
+                    <td>{{ user.created_at or '' }}</td>
+                    <td>
+                        <div class="actions-cell">
+                            <form method="POST" action="{{ url_for('change_password', user_id=user.id) }}">
+                                <input type="password" name="password" placeholder="Нова парола" required>
+                                <button type="submit" class="btn-sm btn-save">Смени</button>
+                            </form>
+                            {% if not user.is_admin %}
+                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}"
+                                  onsubmit="return confirm('Изтриване на {{ user.username }}?')">
+                                <button type="submit" class="btn-sm btn-delete">Изтрий</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="add-user-card">
+            <h3>Добавяне на нов потребител</h3>
+            <form method="POST" action="{{ url_for('add_user') }}" class="add-form">
+                <div class="field">
+                    <label for="new-username">Потребителско име</label>
+                    <input type="text" id="new-username" name="username" required>
+                </div>
+                <div class="field">
+                    <label for="new-password">Парола</label>
+                    <input type="password" id="new-password" name="password" required>
+                </div>
+                <button type="submit" class="btn-add">Добави</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
