@@ -254,8 +254,12 @@
     <script>
         const COOLDOWN = {{ cooldown }};
 
-        // --- Cameras: single aggregated request ---
+        // --- Cameras: single aggregated request, wait for completion ---
+        let fetching = false;
+
         function refreshAll() {
+            if (fetching) return;
+            fetching = true;
             fetch('/camera/snapshots')
                 .then(r => r.json())
                 .then(data => {
@@ -270,11 +274,14 @@
                         }
                     });
                 })
-                .catch(() => {});
+                .catch(() => {})
+                .finally(() => {
+                    fetching = false;
+                    setTimeout(refreshAll, 200);
+                });
         }
 
         refreshAll();
-        setInterval(refreshAll, 1000);
 
         // --- Buttons ---
         function pressButton(type) {

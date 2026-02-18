@@ -1,6 +1,6 @@
 name: "Raj Gate Controller"
 description: "Secure web portal for gate and garage door control with camera view"
-version: "2.2.0"
+version: "2.2.1"
 slug: "raj-gate-controller"
 url: "https://github.com/vaskodevices/raj-gate-controller"
 arch:
