@@ -200,19 +200,29 @@ def camera_snapshot():
 @app.route("/camera/stream")
 @login_required
 def camera_stream():
-    """Proxy MJPEG stream from HA."""
-    url = f"{HA_URL}/api/camera_proxy_stream/{CAMERA_ENTITY}"
-    try:
-        resp = requests.get(url, headers=ha_headers(), timeout=30, stream=True)
-        resp.raise_for_status()
-        return Response(
-            stream_with_context(resp.iter_content(chunk_size=4096)),
-            content_type=resp.headers.get("Content-Type",
-                                          "multipart/x-mixed-replace; boundary=frame")
-        )
-    except Exception as e:
-        app.logger.error(f"Camera stream error: {e}")
-        return Response(status=502)
+    """MJPEG stream built from HA camera snapshots (~2 fps)."""
+    snapshot_url = f"{HA_URL}/api/camera_proxy/{CAMERA_ENTITY}"
+    boundary = "frameboundary"
+
+    def generate():
+        while True:
+            try:
+                resp = requests.get(snapshot_url, headers=ha_headers(), timeout=10)
+                resp.raise_for_status()
+                frame = resp.content
+                yield (
+                    f"--{boundary}\r\n"
+                    f"Content-Type: image/jpeg\r\n"
+                    f"Content-Length: {len(frame)}\r\n\r\n"
+                ).encode() + frame + b"\r\n"
+                time.sleep(0.5)
+            except Exception:
+                time.sleep(1)
+
+    return Response(
+        stream_with_context(generate()),
+        content_type=f"multipart/x-mixed-replace; boundary={boundary}"
+    )
 
 
 # --- Button actions ---
