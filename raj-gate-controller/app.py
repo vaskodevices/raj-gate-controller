@@ -45,12 +45,14 @@ else:
         "camera3_channel": 0, "camera3_host": "", "camera3_stream": "main",
         "garage_button_entity": os.environ.get("GARAGE_BUTTON", "input_button.garazhna_vrata"),
         "gate_button_entity": os.environ.get("GATE_BUTTON", "input_button.plzgashcha_vrata"),
+        "main_door_button_entity": os.environ.get("MAIN_DOOR_BUTTON", "input_button.main_door"),
         "cooldown_seconds": int(os.environ.get("COOLDOWN_SECONDS", "10")),
     }
 
 HA_URL = OPTIONS["ha_url"].rstrip("/")
 GARAGE_BUTTON = OPTIONS["garage_button_entity"]
 GATE_BUTTON = OPTIONS["gate_button_entity"]
+MAIN_DOOR_BUTTON = OPTIONS["main_door_button_entity"]
 COOLDOWN_SECONDS = OPTIONS["cooldown_seconds"]
 
 # NVR access
@@ -288,6 +290,12 @@ def press_garage():
 @login_required
 def press_gate():
     return _handle_button_press(GATE_BUTTON, "Плъзгаща врата")
+
+
+@app.route("/api/main_door", methods=["POST"])
+@login_required
+def press_main_door():
+    return _handle_button_press(MAIN_DOOR_BUTTON, "Входна врата")
 
 
 def _handle_button_press(entity_id, label):

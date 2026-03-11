@@ -1,6 +1,6 @@
 name: "Raj Gate Controller"
 description: "Secure web portal for gate and garage door control with camera view"
-version: "2.3.1"
+version: "2.4.0"
 slug: "raj-gate-controller"
 url: "https://github.com/vaskodevices/raj-gate-controller"
 arch:
@@ -44,6 +44,7 @@ options:
   camera3_stream: "main"
   garage_button_entity: "input_button.garazhna_vrata"
   gate_button_entity: "input_button.plzgashcha_vrata"
+  main_door_button_entity: "input_button.main_door"
   cooldown_seconds: 10
 schema:
   admin_username: str
@@ -75,6 +76,7 @@ schema:
   camera3_stream: "list(main|sub)"
   garage_button_entity: str
   gate_button_entity: str
+  main_door_button_entity: str
   cooldown_seconds: int
 homeassistant_api: true
 auth_api: true
